@@ -158,6 +158,27 @@ def get_config(service_title: str, service_port: int):
 - 使用参数化查询 (`#{param}` -> `:param`)，禁止字符串拼接 SQL
 - `QueryWrapper.last()` 有注入风险，慎用
 
+### Git 规范
+
+**每次修改代码后必须提交 git commit。** 无论是新增功能、修复 bug、修改配置还是重构代码，完成后都应立即 commit。
+
+```bash
+# 完成修改后必须执行
+git add <修改的文件>
+git commit -m "<描述>"
+```
+
+Commit 消息规范:
+- 使用中文或英文均可，但要清晰描述改动内容
+- 格式: `<类型>: <简要描述>`
+- 类型: `feat` / `fix` / `refactor` / `docs` / `test` / `chore`
+- 示例: `feat: 添加用户注册接口` / `fix: 修复 SQL 注入漏洞` / `docs: 更新 CLAUDE.md`
+
+禁止事项:
+- 禁止提交 `.env`、密钥、密码等敏感文件
+- 禁止提交 `.venv/`、`__pycache__/`、`*.db` 等生成文件
+- 禁止使用 `git add .` 或 `git add -A`，必须明确指定文件
+
 ### 测试
 
 ```bash
