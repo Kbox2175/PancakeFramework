@@ -45,6 +45,9 @@ all = ["langgraph", "websocket-client", "aiohttp", "grpcio", "redis", "openai", 
 [tool.poetry.scripts]
 pancake = "pancake.cli:main"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
