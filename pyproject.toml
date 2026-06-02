@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "framework"
+version = "0.1.0"
+description = "Pancake - Decorator-driven Python web framework"
+authors = ["drayee <1473443474@qq.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+requests = "^2.33.1"
+fastapi = "^0.136.1"
+uvicorn = "^0.46.0"
+python-dotenv = "^1.2.2"
+pyyaml = "^6.0.3"
+peewee = "^4.0.5"
+databases = "^0.9.0"
+aiosqlite = "^0.22.1"
+
+# Optional dependencies
+langgraph = {version = "^1.1.10", optional = true}
+websocket-client = {version = "^1.9.0", optional = true}
+aiohttp = {version = "^3.9.0", optional = true}
+grpcio = {version = "^1.60.0", optional = true}
+redis = {version = "^5.0.0", optional = true}
+
+[tool.poetry.extras]
+langgraph = ["langgraph"]
+websocket = ["websocket-client"]
+http = ["aiohttp"]
+grpc = ["grpcio"]
+redis = ["redis"]
+all = ["langgraph", "websocket-client", "aiohttp", "grpcio", "redis"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

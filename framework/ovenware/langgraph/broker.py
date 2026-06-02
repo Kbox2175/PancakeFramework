@@ -1,0 +1,226 @@
+"""
+消息队列模块
+支持事件驱动和消息传递
+"""
+
+import asyncio
+import functools
+import logging
+from typing import Any, Callable, Optional
+from collections import defaultdict
+
+import oven
+
+logger = logging.getLogger(__name__)
+
+
+class MessageBroker:
+    """消息队列基类"""
+
+    async def publish(self, topic: str, message: dict) -> None:
+        """发布消息"""
+        raise NotImplementedError
+
+    async def subscribe(self, topic: str, handler: Callable) -> None:
+        """订阅主题"""
+        raise NotImplementedError
+
+    async def close(self) -> None:
+        """关闭连接"""
+        pass
+
+
+class SimpleBroker(MessageBroker):
+    """简单内存消息队列"""
+
+    def __init__(self):
+        self._handlers: dict[str, list[Callable]] = defaultdict(list)
+        self._queue: asyncio.Queue = asyncio.Queue()
+
+    async def publish(self, topic: str, message: dict) -> None:
+        """发布消息到内存队列"""
+        await self._queue.put({"topic": topic, "data": message})
+        # 立即触发处理
+        await self._process_message(topic, message)
+
+    async def subscribe(self, topic: str, handler: Callable) -> None:
+        """订阅主题"""
+        self._handlers[topic].append(handler)
+        logger.info(f"订阅主题: {topic}")
+
+    async def _process_message(self, topic: str, message: dict) -> None:
+        """处理消息"""
+        handlers = self._handlers.get(topic, [])
+        for handler in handlers:
+            try:
+                if asyncio.iscoroutinefunction(handler):
+                    await handler(message)
+                else:
+                    handler(message)
+            except Exception as e:
+                logger.error(f"处理消息失败 [{topic}]: {e}")
+
+    async def close(self) -> None:
+        """关闭"""
+        self._handlers.clear()
+
+
+class RedisBroker(MessageBroker):
+    """Redis 消息队列"""
+
+    def __init__(self, url: str = "redis://localhost:6379"):
+        self.url = url
+        self._redis = None
+        self._pubsub = None
+        self._handlers: dict[str, list[Callable]] = defaultdict(list)
+        self._listener_task = None
+
+    async def _get_redis(self):
+        if self._redis is None:
+            import redis.asyncio as aioredis
+            self._redis = aioredis.from_url(self.url)
+        return self._redis
+
+    async def publish(self, topic: str, message: dict) -> None:
+        """发布消息到 Redis"""
+        redis = await self._get_redis()
+        import json
+        await redis.publish(topic, json.dumps(message))
+        logger.debug(f"发布消息到 {topic}")
+
+    async def subscribe(self, topic: str, handler: Callable) -> None:
+        """订阅 Redis 主题"""
+        self._handlers[topic].append(handler)
+
+        # 启动监听器
+        if self._listener_task is None:
+            self._listener_task = asyncio.create_task(self._listen())
+
+        redis = await self._get_redis()
+        if self._pubsub is None:
+            self._pubsub = redis.pubsub()
+
+        await self._pubsub.subscribe(topic)
+        logger.info(f"订阅 Redis 主题: {topic}")
+
+    async def _listen(self) -> None:
+        """监听 Redis 消息"""
+        import json
+        while True:
+            try:
+                if self._pubsub:
+                    message = await self._pubsub.get_message(ignore_subscribe_messages=True)
+                    if message and message["type"] == "message":
+                        topic = message["channel"].decode() if isinstance(message["channel"], bytes) else message["channel"]
+                        data = json.loads(message["data"])
+                        await self._process_message(topic, data)
+                await asyncio.sleep(0.01)
+            except Exception as e:
+                logger.error(f"Redis 监听错误: {e}")
+                await asyncio.sleep(1)
+
+    async def _process_message(self, topic: str, message: dict) -> None:
+        """处理消息"""
+        handlers = self._handlers.get(topic, [])
+        for handler in handlers:
+            try:
+                if asyncio.iscoroutinefunction(handler):
+                    await handler(message)
+                else:
+                    handler(message)
+            except Exception as e:
+                logger.error(f"处理消息失败 [{topic}]: {e}")
+
+    async def close(self) -> None:
+        """关闭连接"""
+        if self._listener_task:
+            self._listener_task.cancel()
+        if self._pubsub:
+            await self._pubsub.close()
+        if self._redis:
+            await self._redis.close()
+
+
+# 全局 broker
+_broker: Optional[MessageBroker] = None
+
+
+def get_broker() -> MessageBroker:
+    """获取全局 broker"""
+    global _broker
+    if _broker is None:
+        _broker = SimpleBroker()
+    return _broker
+
+
+def set_broker(broker: MessageBroker) -> None:
+    """设置全局 broker"""
+    global _broker
+    _broker = broker
+
+
+def event_node(name: str = None, event: str = None):
+    """
+    事件节点装饰器
+
+    Args:
+        name: 节点名称
+        event: 事件名称（用于消息队列）
+    """
+    def decorator(func):
+        nonlocal name
+        if name is None:
+            name = func.__name__
+
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            result = await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
+
+            # 发布事件
+            if event:
+                broker = get_broker()
+                await broker.publish(event, {
+                    "source": name,
+                    "result": result,
+                    "data": kwargs,
+                })
+
+            # 存储结果
+            oven.pancake_other.setdefault("langgraph_map", {})[name] = result
+            return result
+
+        # 标记为事件节点
+        wrapper._event = True
+        wrapper._event_name = event
+
+        # 注册到 langgraph 节点
+        oven.pancake_dough.setdefault("langgraph_node", {})[name] = wrapper
+
+        return wrapper
+    return decorator
+
+
+def on_event(event: str):
+    """
+    事件监听装饰器
+
+    Args:
+        event: 事件名称
+    """
+    def decorator(func):
+        # 异步订阅
+        async def setup():
+            broker = get_broker()
+            await broker.subscribe(event, func)
+
+        # 保存设置函数
+        func._event_setup = setup
+        func._event_name = event
+
+        return func
+    return decorator
+
+
+# 注册到 muffin_flour，使其被 embed 自动注入到 builtins
+oven.muffin_flour["event_node"] = event_node
+oven.muffin_flour["on_event"] = on_event
