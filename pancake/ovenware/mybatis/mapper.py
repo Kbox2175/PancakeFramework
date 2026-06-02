@@ -241,7 +241,7 @@ class BaseMapper:
 
     # ---- QueryWrapper 链式查询 ----
 
-    async def select(self, wrapper: QueryWrapper = None, **kwargs):
+    async def select(self, wrapper: QueryWrapper = None, **kwargs) -> list:
         """
         链式条件查询列表
 
@@ -258,7 +258,7 @@ class BaseMapper:
         rows = await db.fetch_all(query=sql, values=values)
         return _rows_to_entities(rows, self._entity_class)
 
-    async def select_one(self, wrapper: QueryWrapper = None, **kwargs):
+    async def select_one(self, wrapper: QueryWrapper = None, **kwargs) -> Any:
         """
         链式条件查询单条
 

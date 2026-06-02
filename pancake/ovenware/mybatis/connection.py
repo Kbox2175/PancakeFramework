@@ -41,7 +41,7 @@ class DatabaseManager:
         logger.info(f"数据库已连接: {url.split('@')[-1] if '@' in url else url}")
         return self._database
 
-    async def close(self):
+    async def close(self) -> None:
         """关闭数据库连接"""
         if self._database:
             await self._database.disconnect()
@@ -54,7 +54,7 @@ class DatabaseManager:
             raise RuntimeError("数据库未初始化，请先调用 init_database()")
         return self._database
 
-    def reset(self):
+    def reset(self) -> None:
         """重置状态（用于测试，不断开连接）"""
         self._database = None
 

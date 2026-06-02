@@ -38,7 +38,7 @@ class RedisClient:
         self.default_ttl = default_ttl
         self._redis = None
 
-    async def _get_conn(self):
+    async def _get_conn(self) -> Any:
         if self._redis is None:
             import redis.asyncio as aioredis
             self._redis = aioredis.from_url(

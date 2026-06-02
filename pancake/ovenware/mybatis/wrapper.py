@@ -69,97 +69,97 @@ class QueryWrapper:
 
     # ---- 比较条件 ----
 
-    def eq(self, column, value):
+    def eq(self, column, value) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "=", value))
         return self
 
-    def ne(self, column, value):
+    def ne(self, column, value) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "!=", value))
         return self
 
-    def gt(self, column, value):
+    def gt(self, column, value) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, ">", value))
         return self
 
-    def ge(self, column, value):
+    def ge(self, column, value) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, ">=", value))
         return self
 
-    def lt(self, column, value):
+    def lt(self, column, value) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "<", value))
         return self
 
-    def le(self, column, value):
+    def le(self, column, value) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "<=", value))
         return self
 
     # ---- LIKE ----
 
-    def like(self, column, value):
+    def like(self, column, value) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "LIKE", value))
         return self
 
-    def not_like(self, column, value):
+    def not_like(self, column, value) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "NOT LIKE", value))
         return self
 
-    def like_left(self, column, value):
+    def like_left(self, column, value) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "LIKE_LEFT", f"%{value}"))
         return self
 
-    def like_right(self, column, value):
+    def like_right(self, column, value) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "LIKE_RIGHT", f"{value}%"))
         return self
 
     # ---- IN / NOT IN ----
 
-    def in_(self, column, values: list):
+    def in_(self, column, values: list) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "IN", values))
         return self
 
-    def not_in(self, column, values: list):
+    def not_in(self, column, values: list) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "NOT IN", values))
         return self
 
     # ---- BETWEEN ----
 
-    def between(self, column, low, high):
+    def between(self, column, low, high) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "BETWEEN", (low, high)))
         return self
 
-    def not_between(self, column, low, high):
+    def not_between(self, column, low, high) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "NOT BETWEEN", (low, high)))
         return self
 
     # ---- NULL ----
 
-    def is_null(self, column):
+    def is_null(self, column) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "IS NULL", None))
         return self
 
-    def is_not_null(self, column):
+    def is_not_null(self, column) -> "QueryWrapper":
         column = _resolve_column(column)
         self._conditions.append((column, "IS NOT NULL", None))
         return self
 
     # ---- 逻辑分组 ----
 
-    def and_(self, wrapper_fn):
+    def and_(self, wrapper_fn) -> "QueryWrapper":
         """AND 嵌套条件: qw().eq("a", 1).and_(lambda w: w.eq("b", 2).or_.eq("c", 3))"""
         sub = QueryWrapper()
         wrapper_fn(sub)
@@ -168,7 +168,7 @@ class QueryWrapper:
             self._or_groups.append(("AND", sql, params))
         return self
 
-    def or_(self, wrapper_fn):
+    def or_(self, wrapper_fn) -> "QueryWrapper":
         """OR 嵌套条件: qw().eq("a", 1).or_(lambda w: w.eq("b", 2).eq("c", 3))"""
         sub = QueryWrapper()
         wrapper_fn(sub)
@@ -177,7 +177,7 @@ class QueryWrapper:
             self._or_groups.append(("OR", sql, params))
         return self
 
-    def or_eq(self, column, value):
+    def or_eq(self, column, value) -> "QueryWrapper":
         """OR 条件快捷方式"""
         column = _resolve_column(column)
         self._or_groups.append(("OR_INLINE", column, "=", value))
@@ -185,43 +185,43 @@ class QueryWrapper:
 
     # ---- 排序 / 分页 ----
 
-    def order_by_asc(self, *columns):
+    def order_by_asc(self, *columns) -> "QueryWrapper":
         for col in columns:
             self._order_by.append((_resolve_column(col), "ASC"))
         return self
 
-    def order_by_desc(self, *columns):
+    def order_by_desc(self, *columns) -> "QueryWrapper":
         for col in columns:
             self._order_by.append((_resolve_column(col), "DESC"))
         return self
 
-    def group_by(self, *columns):
+    def group_by(self, *columns) -> "QueryWrapper":
         for col in columns:
             self._group_by.append(_resolve_column(col))
         return self
 
-    def having(self, condition: str, params: dict = None):
+    def having(self, condition: str, params: dict = None) -> "QueryWrapper":
         self._having = condition
         if params:
             self._having_params.update(params)
         return self
 
-    def limit(self, n: int):
+    def limit(self, n: int) -> "QueryWrapper":
         self._limit = n
         return self
 
-    def offset(self, n: int):
+    def offset(self, n: int) -> "QueryWrapper":
         self._offset = n
         return self
 
-    def last(self, sql: str):
+    def last(self, sql: str) -> "QueryWrapper":
         """追加原始 SQL 片段（慎用，有 SQL 注入风险）"""
         self._last_sql = sql
         return self
 
     # ---- 列选择 ----
 
-    def select_columns(self, *columns):
+    def select_columns(self, *columns) -> "QueryWrapper":
         self._select_cols = [_resolve_column(c) for c in columns]
         return self
 
@@ -377,7 +377,7 @@ class UpdateWrapper(QueryWrapper):
         super().__init__()
         self._set_clauses: list[tuple[str, Any]] = []
 
-    def set(self, column, value):
+    def set(self, column, value) -> "UpdateWrapper":
         """SET column = value"""
         column = _resolve_column(column)
         self._set_clauses.append((column, value))
