@@ -99,6 +99,30 @@ class BaseMapper:
         _registered_mappers[cls.__name__] = cls
         logger.info(f"Mapper {cls.__name__} 已注册 (table={cls._table_name})")
 
+    _TYPE_MAP = {
+        int: "INTEGER",
+        str: "TEXT",
+        float: "REAL",
+        bool: "INTEGER",
+    }
+
+    async def create_table(self):
+        """根据 _entity_class 的 dataclass 字段自动建表"""
+        if self._entity_class is None or not is_dataclass(self._entity_class):
+            raise ValueError(f"{self.__class__.__name__} 未定义 _entity_class 或不是 dataclass")
+        db = get_database()
+        cols = []
+        for f in fields(self._entity_class):
+            col_type = self._TYPE_MAP.get(f.type, "TEXT")
+            if f.name == "id":
+                cols.append(f"    {f.name} {col_type} PRIMARY KEY AUTOINCREMENT")
+            else:
+                cols.append(f"    {f.name} {col_type}")
+        col_sql = ",\n".join(cols)
+        sql = f"CREATE TABLE IF NOT EXISTS {self._table_name} (\n{col_sql}\n)"
+        await db.execute(query=sql)
+        logger.info(f"表 {self._table_name} 已创建")
+
     async def select_by_id(self, id: int):
         """根据 ID 查询"""
         db = get_database()
