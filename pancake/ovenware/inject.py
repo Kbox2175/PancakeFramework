@@ -65,7 +65,7 @@ def auto_inject(*same_name_args: list[str], **customize_args: dict[str, str]):
         len_param_types = len(param_types)
         len_args = len(same_name_args) + len(customize_args)
         if len_args == 0:
-            same_name_args = param_types.keys()
+            same_name_args = list(param_types.keys())
         elif len_args != len_param_types:
             logger.error(f"调用函数 {func.__name__}, 参数数量错误, 应该是 {len_param_types}")
             raise ValueError(f"参数数量错误, 应该是 {len_param_types}")
