@@ -10,6 +10,7 @@ import base64
 import functools
 import hashlib
 import hmac
+import inspect
 import ipaddress
 import json
 import logging
@@ -244,7 +245,7 @@ def api_key_required(header: str = "X-API-Key", keys: list[str] = None,
     """
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        async def wrapper(*args, request: Request, **kwargs):
+        async def wrapper(request: Request, *args, **kwargs):
             key = request.headers.get(header)
             if not key:
                 raise HTTPException(status_code=401, detail=f"缺少 {header} 头")
@@ -262,7 +263,10 @@ def api_key_required(header: str = "X-API-Key", keys: list[str] = None,
             else:
                 raise HTTPException(status_code=500, detail="api_key_required 未配置 keys 或 validator")
 
-            return await func(*args, request=request, **kwargs)
+            return await func(*args, **kwargs)
+        wrapper.__signature__ = inspect.Signature(
+            parameters=[inspect.Parameter("request", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=Request)]
+        )
         return wrapper
     return decorator
 
@@ -373,11 +377,10 @@ class CSRFProtectFilter(Filter):
 # ============================================================
 
 class _MemorySessionStore:
-    """内存会话存储"""
+    """内存会话存储（类级别共享，所有实例共用同一份数据）"""
 
-    def __init__(self):
-        self._store: dict[str, dict] = {}
-        self._expiry: dict[str, float] = {}
+    _store: dict[str, dict] = {}
+    _expiry: dict[str, float] = {}
 
     async def get(self, session_id: str) -> dict | None:
         exp = self._expiry.get(session_id)
@@ -846,10 +849,13 @@ def oauth2_required(scopes: list[str] = None):
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        async def wrapper(*args, request: Request, **kwargs):
+        async def wrapper(request: Request, *args, **kwargs):
             claims = await resource_server.verify(request)
             kwargs["oauth_claims"] = claims
-            return await func(*args, request=request, **kwargs)
+            return await func(*args, **kwargs)
+        wrapper.__signature__ = inspect.Signature(
+            parameters=[inspect.Parameter("request", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=Request)]
+        )
         return wrapper
     return decorator
 

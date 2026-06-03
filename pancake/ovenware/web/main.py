@@ -169,7 +169,7 @@ class Main(InitAction):
                 path = oven.pancake_other["path"].get(name)
                 if path:
                     tags = tags_map.get(name)
-                    _auto_annotate_body(func)
+                    _auto_annotate_body(func, method=method, path=path)
                     self.app.add_api_route(path, func, methods=[method], tags=tags)
 
         # 注册 WebSocket 路由

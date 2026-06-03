@@ -63,10 +63,16 @@ def _inject_dependency(func: Callable, param_name: str, annotation: Any, default
         default=default,
         annotation=annotation,
     )
-    # 避免重复注入
-    if param_name not in sig.parameters:
+    # 替换已存在的参数或追加新参数
+    if param_name in sig.parameters:
+        idx = next(i for i, p in enumerate(params) if p.name == param_name)
+        params[idx] = new_param
+    else:
         params.append(new_param)
     func.__signature__ = sig.replace(parameters=params)
+    # 删除 __wrapped__ 防止 inspect.signature 跳转到原始函数签名
+    if hasattr(func, '__wrapped__'):
+        del func.__wrapped__
 
 
 def auth_required(func: Callable) -> Callable:

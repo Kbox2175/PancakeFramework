@@ -128,13 +128,13 @@ pip install pancake_framework[all]         # All optional deps
 
 ### Security
 
-- [ ] OAuth2 support — OAuth2 client and resource server
-- [ ] API key authentication — `@api_key_required` header-based auth
-- [ ] Password hashing — bcrypt/argon2 integration
-- [ ] CSRF protection — token-based CSRF for form submissions
-- [ ] Security headers — auto-add HSTS, X-Frame-Options, CSP
-- [ ] IP whitelist/blacklist — middleware-based IP filtering
-- [ ] Session management — server-side session with Redis/memory store
+- [x] OAuth2 support — OAuth2 client and resource server
+- [x] API key authentication — `@api_key_required` header-based auth
+- [x] Password hashing — bcrypt/argon2 integration
+- [x] CSRF protection — token-based CSRF for form submissions
+- [x] Security headers — auto-add HSTS, X-Frame-Options, CSP
+- [x] IP whitelist/blacklist — middleware-based IP filtering
+- [x] Session management — server-side session with Redis/memory store
 
 ### Data / ORM
 
