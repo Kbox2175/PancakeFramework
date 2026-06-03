@@ -26,6 +26,7 @@ from .security import (
     OAuth2Server, OAuth2ResourceServer, oauth2_required,
     register_oauth2_routes,
 )
+from fastapi.responses import JSONResponse
 from .main import Main
 
 # 注册到 oven，使 embed 自动注入到 builtins
@@ -61,6 +62,9 @@ oven.muffin_flour["rate_limit"] = rate_limit
 
 # WebSocket
 oven.muffin_flour["websocket_controller"] = websocket_controller
+
+# 响应类型（用户无需 import）
+oven.muffin_flour["JSONResponse"] = JSONResponse
 
 # 安全模块
 oven.muffin_flour["hash_password"] = hash_password

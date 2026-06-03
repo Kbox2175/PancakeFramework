@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from typing import Any, Callable
 
-from fastapi import Body
+from fastapi import Body, Request
 from fastapi.responses import HTMLResponse
 
 from pancake import oven
@@ -32,20 +32,41 @@ _PRIMITIVE_TYPES = {str, int, float, bool, type(None)}
 # 已知的 FastAPI 参数类型，跳过不处理
 _SKIP_PARAMS = {"request", "self", "current_user", "websocket"}
 
+# 使用 body 的 HTTP 方法
+_BODY_METHODS = {"POST", "PUT", "PATCH"}
 
-def _auto_annotate_body(func: Callable) -> Callable:
-    """自动为复杂类型参数添加 Body() 标注
 
-    FastAPI 的 add_api_route 不会自动将 list/dict 等复杂类型识别为 body 参数，
-    需要显式添加 Body() 标注。此函数在注册路由前自动完成这一工作。
+def _extract_path_params(path: str) -> set[str]:
+    """从路径模板中提取路径参数名，如 /students/{student_id} -> {'student_id'}"""
+    import re
+    return set(re.findall(r'\{(\w+)\}', path))
+
+
+def _auto_annotate_body(func: Callable, method: str = "GET", path: str = "") -> Callable:
+    """自动为参数添加 Body() 标注
+
+    对于 POST/PUT/PATCH 请求：所有非路径参数自动从 body 读取。
+    对于 GET/DELETE 请求：仅复杂类型添加 Body()。
+    request 参数自动注入 Request 类型（用户无需 import）。
     """
+    import re
     sig = inspect.signature(func)
     params = list(sig.parameters.values())
     modified = False
+    path_params = set(re.findall(r'\{(\w+)\}', path)) if path else set()
 
     for i, param in enumerate(params):
+        # request 参数自动注入 Request 类型（用户无需 import）
+        if param.name == "request" and param.annotation is inspect.Parameter.empty:
+            params[i] = param.replace(annotation=Request)
+            modified = True
+            continue
+
         # 跳过特殊参数
         if param.name in _SKIP_PARAMS:
+            continue
+        # 跳过路径参数
+        if param.name in path_params:
             continue
         # 跳过 *args, **kwargs
         if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
@@ -55,14 +76,18 @@ def _auto_annotate_body(func: Callable) -> Callable:
             if hasattr(param.default, '__class__') and param.default.__class__.__name__ == 'Body':
                 continue
 
-        # 检查类型注解是否为复杂类型
         annotation = param.annotation
-        if annotation is inspect.Parameter.empty:
+
+        # POST/PUT/PATCH：所有非路径参数都从 body 读取
+        if method.upper() in _BODY_METHODS:
+            params[i] = param.replace(default=Body(), annotation=annotation if annotation is not inspect.Parameter.empty else str)
+            modified = True
             continue
 
-        # 获取原始类型（处理 Optional/Union 等）
+        # GET/DELETE：仅复杂类型添加 Body()
+        if annotation is inspect.Parameter.empty:
+            continue
         origin = getattr(annotation, '__origin__', None)
-
         is_complex = False
         if origin in (list, dict, tuple, set, frozenset):
             is_complex = True
