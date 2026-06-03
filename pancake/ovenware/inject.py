@@ -150,6 +150,7 @@ class IoCContainer:
         self._registrations: dict[str, dict] = {}
         self._singletons: dict[str, Any] = {}
         self._scoped: dict[str, Any] = {}
+        self._resolving: set[str] = set()  # 循环依赖检测
 
     def register(self, interface: Type = None, implementation: Any = None,
                  scope: Scope = Scope.TRANSIENT, factory: Callable = None):
@@ -196,24 +197,33 @@ class IoCContainer:
         if key not in self._registrations:
             raise ValueError(f"未注册的依赖: {key}")
 
+        # 循环依赖检测
+        if key in self._resolving:
+            chain = " -> ".join(self._resolving) + f" -> {key}"
+            raise ValueError(f"检测到循环依赖: {chain}")
+
         reg = self._registrations[key]
         scope = reg["scope"]
 
+        # 单例已缓存，直接返回
+        if scope == Scope.SINGLETON and key in self._singletons:
+            return self._singletons[key]
+        if scope == Scope.SCOPED and key in self._scoped:
+            return self._scoped[key]
+
+        # 标记正在解析
+        self._resolving.add(key)
+        try:
+            instance = self._create_instance(reg)
+        finally:
+            self._resolving.discard(key)
+
         if scope == Scope.SINGLETON:
-            if key in self._singletons:
-                return self._singletons[key]
-            instance = self._create_instance(reg)
             self._singletons[key] = instance
-            return instance
-
-        if scope == Scope.SCOPED:
-            if key in self._scoped:
-                return self._scoped[key]
-            instance = self._create_instance(reg)
+        elif scope == Scope.SCOPED:
             self._scoped[key] = instance
-            return instance
 
-        return self._create_instance(reg)
+        return instance
 
     def _create_instance(self, reg: dict) -> Any:
         if reg["factory"]:
