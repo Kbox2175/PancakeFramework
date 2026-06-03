@@ -158,6 +158,10 @@ class BaseMapper:
             return SQLiteDialect()
         return get_dialect(str(db.url))
 
+    def _qt(self) -> str:
+        """获取带引号的表名"""
+        return self._get_dialect().quote(self._table_name)
+
     async def create_table(self) -> None:
         """根据 _entity_class 的 dataclass 字段自动建表"""
         if self._entity_class is None or not is_dataclass(self._entity_class):
@@ -182,7 +186,7 @@ class BaseMapper:
     async def select_by_id(self, id: int) -> Any:
         """根据 ID 查询"""
         db = get_database()
-        sql = f"SELECT * FROM {self._table_name} WHERE id = :id"
+        sql = f"SELECT * FROM {self._qt()} WHERE id = :id"
         row = await db.fetch_one(query=sql, values={"id": id})
         return _row_to_entity(row, self._entity_class)
 
@@ -190,7 +194,7 @@ class BaseMapper:
         """条件查询列表"""
         db = get_database()
         where, values = _build_where_from_dict(kwargs)
-        sql = f"SELECT * FROM {self._table_name}{where}"
+        sql = f"SELECT * FROM {self._qt()}{where}"
         rows = await db.fetch_all(query=sql, values=values)
         return _rows_to_entities(rows, self._entity_class)
 
@@ -201,7 +205,7 @@ class BaseMapper:
             _validate_identifier(k, "column")
         cols = ", ".join(kwargs.keys())
         placeholders = ", ".join(f":{k}" for k in kwargs.keys())
-        sql = f"INSERT INTO {self._table_name} ({cols}) VALUES ({placeholders})"
+        sql = f"INSERT INTO {self._qt()} ({cols}) VALUES ({placeholders})"
         return await db.execute(query=sql, values=kwargs)
 
     async def insert_batch(self, records: list[dict]) -> int:
@@ -213,7 +217,7 @@ class BaseMapper:
             _validate_identifier(k, "column")
         cols = ", ".join(records[0].keys())
         placeholders = ", ".join(f":{k}" for k in records[0].keys())
-        sql = f"INSERT INTO {self._table_name} ({cols}) VALUES ({placeholders})"
+        sql = f"INSERT INTO {self._qt()} ({cols}) VALUES ({placeholders})"
         async with db.transaction():
             for record in records:
                 await db.execute(query=sql, values=record)
@@ -226,13 +230,13 @@ class BaseMapper:
             _validate_identifier(k, "column")
         set_parts = ", ".join(f"{k} = :{k}" for k in kwargs.keys())
         kwargs["__id"] = id
-        sql = f"UPDATE {self._table_name} SET {set_parts} WHERE id = :__id"
+        sql = f"UPDATE {self._qt()} SET {set_parts} WHERE id = :__id"
         return await db.execute(query=sql, values=kwargs)
 
     async def delete_by_id(self, id: int) -> int:
         """根据 ID 删除"""
         db = get_database()
-        sql = f"DELETE FROM {self._table_name} WHERE id = :id"
+        sql = f"DELETE FROM {self._qt()} WHERE id = :id"
         return await db.execute(query=sql, values={"id": id})
 
     async def delete_batch_by_ids(self, ids: list) -> int:
@@ -242,7 +246,7 @@ class BaseMapper:
         db = get_database()
         placeholders = ", ".join(f":id_{i}" for i in range(len(ids)))
         values = {f"id_{i}": id for i, id in enumerate(ids)}
-        sql = f"DELETE FROM {self._table_name} WHERE id IN ({placeholders})"
+        sql = f"DELETE FROM {self._qt()} WHERE id IN ({placeholders})"
         return await db.execute(query=sql, values=values)
 
     # ---- QueryWrapper 链式查询 ----
@@ -257,10 +261,10 @@ class BaseMapper:
         """
         db = get_database()
         if wrapper is not None:
-            sql, values = wrapper.to_select_sql(self._table_name)
+            sql, values = wrapper.to_select_sql(self._qt())
         else:
             where, values = _build_where_from_dict(kwargs)
-            sql = f"SELECT * FROM {self._table_name}{where}"
+            sql = f"SELECT * FROM {self._qt()}{where}"
         rows = await db.fetch_all(query=sql, values=values)
         return _rows_to_entities(rows, self._entity_class)
 
@@ -273,13 +277,13 @@ class BaseMapper:
         """
         db = get_database()
         if wrapper is not None:
-            sql, values = wrapper.to_select_sql(self._table_name)
+            sql, values = wrapper.to_select_sql(self._qt())
             # 自动加 LIMIT 1（如果没有指定）
             if wrapper._limit is None:
                 sql += " LIMIT 1"
         else:
             where, values = _build_where_from_dict(kwargs)
-            sql = f"SELECT * FROM {self._table_name}{where} LIMIT 1"
+            sql = f"SELECT * FROM {self._qt()}{where} LIMIT 1"
         row = await db.fetch_one(query=sql, values=values)
         return _row_to_entity(row, self._entity_class)
 
@@ -292,10 +296,10 @@ class BaseMapper:
         """
         db = get_database()
         if wrapper is not None:
-            sql, values = wrapper.to_count_sql(self._table_name)
+            sql, values = wrapper.to_count_sql(self._qt())
         else:
             where, values = _build_where_from_dict(kwargs)
-            sql = f"SELECT COUNT(*) as cnt FROM {self._table_name}{where}"
+            sql = f"SELECT COUNT(*) as cnt FROM {self._qt()}{where}"
         row = await db.fetch_one(query=sql, values=values)
         return row["cnt"] if row else 0
 
@@ -309,7 +313,7 @@ class BaseMapper:
         """
         db = get_database()
         if update_wrapper is not None:
-            sql, values = update_wrapper.to_update_sql(self._table_name)
+            sql, values = update_wrapper.to_update_sql(self._qt())
         else:
             raise ValueError("必须提供 UpdateWrapper")
         return await db.execute(query=sql, values=values)
@@ -325,10 +329,10 @@ class BaseMapper:
         db = get_database()
         if wrapper is not None:
             where_clause, values = wrapper.to_where_clause()
-            sql = f"DELETE FROM {self._table_name}{where_clause}"
+            sql = f"DELETE FROM {self._qt()}{where_clause}"
         else:
             where, values = _build_where_from_dict(kwargs)
-            sql = f"DELETE FROM {self._table_name}{where}"
+            sql = f"DELETE FROM {self._qt()}{where}"
         return await db.execute(query=sql, values=values)
 
     async def select_page(self, page: Page, wrapper: QueryWrapper = None, **kwargs) -> PageResult:
@@ -346,12 +350,12 @@ class BaseMapper:
             where_clause, values = _build_where_from_dict(kwargs)
 
         # 查总数
-        count_sql = f"SELECT COUNT(*) as cnt FROM {self._table_name}{where_clause}"
+        count_sql = f"SELECT COUNT(*) as cnt FROM {self._qt()}{where_clause}"
         row = await db.fetch_one(query=count_sql, values=values)
         total = row["cnt"] if row else 0
 
         # 查数据
-        data_sql = f"SELECT * FROM {self._table_name}{where_clause} LIMIT :__limit OFFSET :__offset"
+        data_sql = f"SELECT * FROM {self._qt()}{where_clause} LIMIT :__limit OFFSET :__offset"
         values["__limit"] = page.limit
         values["__offset"] = page.offset
         rows = await db.fetch_all(query=data_sql, values=values)
