@@ -114,7 +114,7 @@ def role_required(*roles: str):
         base = auth_required(func) if not getattr(func, "_auth_required", False) else func
 
         @functools.wraps(base)
-        async def wrapper(*args, request: Request, current_user: Any = Depends(_get_current_user), **kwargs):
+        async def wrapper(*args, request: Request = None, current_user: Any = Depends(_get_current_user), **kwargs):
             if current_user is None:
                 raise HTTPException(status_code=401, detail="未认证")
             if _role_handler is None:
