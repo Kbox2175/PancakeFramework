@@ -302,7 +302,7 @@ class QueryWrapper:
         if or_parts:
             or_where = " OR ".join(or_parts)
             if and_where:
-                where = f"{and_where} OR ({or_where})"
+                where = f"({and_where}) OR ({or_where})"
             else:
                 where = f"({or_where})"
         else:
