@@ -1,0 +1,6 @@
+# MyBatis 插件默认配置
+mybatis:
+  database:
+    url: "sqlite:///resource/db/app.db"
+    min_size: 1
+    max_size: 5

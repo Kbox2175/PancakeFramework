@@ -5,7 +5,7 @@ on:
     branches: [master]
     paths:
       - 'pyproject.toml'
-      - 'pancake-*/pyproject.toml'
+      - 'plugins/pancake-*/pyproject.toml'
   workflow_dispatch:
     inputs:
       force_publish:
@@ -132,7 +132,7 @@ jobs:
         run: |
           FORCE="${{ inputs.force_publish || 'false' }}"
           PLUGINS=""
-          for plugin_dir in pancake-*/; do
+          for plugin_dir in plugins/pancake-*/; do
             plugin_name=$(basename "$plugin_dir")
             if [ -f "$plugin_dir/pyproject.toml" ]; then
               # 读取插件版本
@@ -168,7 +168,7 @@ jobs:
             echo "📦 Publishing $plugin_name version $version..."
 
             # 进入插件目录
-            cd "$plugin_name"
+            cd "plugins/$plugin_name"
 
             # 安装依赖并构建
             poetry install --no-interaction
@@ -179,7 +179,7 @@ jobs:
 
             # 创建 tag
             TAG_NAME="${plugin_name}-v${version}"
-            cd ..
+            cd ../..
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git tag -a "$TAG_NAME" -m "Release $plugin_name v$version"
