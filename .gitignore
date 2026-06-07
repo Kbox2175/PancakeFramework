@@ -35,3 +35,6 @@ poetry.lock
 # OS
 .DS_Store
 Thumbs.db
+
+# Misc
+cookies.txt
