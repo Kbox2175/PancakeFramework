@@ -179,7 +179,7 @@ class DoughFactory:
     async def async_create_all(self):
         """创建所有注册的 Bean（异步版本，支持 async 生命周期）
 
-        1. 处理 @Import：自动注册外部类
+        1. 处理 @import_class：自动注册外部类
         2. 拓扑排序确定创建顺序
         3. 按顺序创建 Bean 并调用 on_init
         """

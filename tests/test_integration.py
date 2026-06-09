@@ -5,7 +5,7 @@
 
 import pytest
 from pancake.dough import Dough, Scope, _call_lifecycle
-from pancake.decorators import DependsOn, Import, Singleton, Prototype, Lazy, inject, noMaker
+from pancake.decorators import depends_on, import_class, singleton, prototype, lazy, inject, no_maker
 from pancake.factory.dough_factory import DoughFactory
 from pancake.registry import clear_registry, register_class, get_class
 from pancake.base.configuration import Configuration
@@ -42,7 +42,7 @@ class TestMultiLayerDependency:
                 creation_order.append("AppConfig")
                 self.db_url = "sqlite:///:memory:"
 
-        @DependsOn("AppConfig")
+        @depends_on("AppConfig")
         class Database(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
@@ -51,7 +51,7 @@ class TestMultiLayerDependency:
                 cfg = DoughFactory.get().resolve("AppConfig")
                 self.url = cfg.db_url
 
-        @DependsOn("Database")
+        @depends_on("Database")
         class UserRepository(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
@@ -59,7 +59,7 @@ class TestMultiLayerDependency:
             async def on_init(self):
                 self.db = DoughFactory.get().resolve("Database")
 
-        @DependsOn("UserRepository")
+        @depends_on("UserRepository")
         class UserService(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
@@ -67,7 +67,7 @@ class TestMultiLayerDependency:
             async def on_init(self):
                 self.repo = DoughFactory.get().resolve("UserRepository")
 
-        @DependsOn("UserService")
+        @depends_on("UserService")
         class UserController(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
@@ -95,19 +95,19 @@ class TestMultiLayerDependency:
         class Config(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("Config")
+        @depends_on("Config")
         class DB(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("DB")
+        @depends_on("DB")
         class Repo(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("Repo")
+        @depends_on("Repo")
         class Svc(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("Svc")
+        @depends_on("Svc")
         class Ctrl(Dough):
             _scope = Scope.SINGLETON
 
@@ -146,15 +146,15 @@ class TestDiamondDependency:
                 creation_count["D"] += 1
                 self.value = 42
 
-        @DependsOn("D")
+        @depends_on("D")
         class B(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("D")
+        @depends_on("D")
         class C(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("B", "C")
+        @depends_on("B", "C")
         class A(Dough):
             _scope = Scope.SINGLETON
 
@@ -175,19 +175,19 @@ class TestDiamondDependency:
             def __init__(self):
                 self.id = "shared_d"
 
-        @DependsOn("D")
+        @depends_on("D")
         class B(Dough):
             _scope = Scope.SINGLETON
             async def on_init(self):
                 self.d = DoughFactory.get().resolve("D")
 
-        @DependsOn("D")
+        @depends_on("D")
         class C(Dough):
             _scope = Scope.SINGLETON
             async def on_init(self):
                 self.d = DoughFactory.get().resolve("D")
 
-        @DependsOn("B", "C")
+        @depends_on("B", "C")
         class A(Dough):
             _scope = Scope.SINGLETON
             async def on_init(self):
@@ -216,15 +216,15 @@ class TestCircularDependency:
     async def test_three_node_cycle(self, factory):
         """A→B→C→A 三层循环依赖"""
 
-        @DependsOn("B")
+        @depends_on("B")
         class A(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("C")
+        @depends_on("C")
         class B(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("A")
+        @depends_on("A")
         class C(Dough):
             _scope = Scope.SINGLETON
 
@@ -239,7 +239,7 @@ class TestCircularDependency:
     async def test_self_dependency(self, factory):
         """自依赖 A→A"""
 
-        @DependsOn("A")
+        @depends_on("A")
         class A(Dough):
             _scope = Scope.SINGLETON
 
@@ -252,11 +252,11 @@ class TestCircularDependency:
     async def test_cycle_with_independent_beans(self, factory):
         """循环依赖不影响独立 Bean 的创建"""
 
-        @DependsOn("B")
+        @depends_on("B")
         class A(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("A")
+        @depends_on("A")
         class B(Dough):
             _scope = Scope.SINGLETON
 
@@ -310,7 +310,7 @@ class TestUnregisteredBean:
     async def test_depends_on_nonexistent_still_creates(self, factory):
         """DependsOn 引用不存在的 Bean 不影响自身创建"""
 
-        @DependsOn("NonExistentBean")
+        @depends_on("NonExistentBean")
         class MyBean(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
@@ -448,7 +448,7 @@ class TestConfigurationMakerDependencies:
 
     @pytest.mark.asyncio
     async def test_no_maker_excludes_method(self, factory):
-        """@noMaker 排除的方法不注册为 Bean"""
+        """@no_maker 排除的方法不注册为 Bean"""
 
         class AppConfig(Configuration):
             _scope = Scope.SINGLETON
@@ -458,7 +458,7 @@ class TestConfigurationMakerDependencies:
             def my_bean(self):
                 return {"type": "bean"}
 
-            @noMaker
+            @no_maker
             def helper(self):
                 return {"type": "helper"}
 
@@ -496,7 +496,7 @@ class TestConfigurationMakerDependencies:
 
 
 # ============================================================
-#  7. @Import 外部类链式依赖
+#  7. @import_class 外部类链式依赖
 # ============================================================
 
 
@@ -511,7 +511,7 @@ class TestImportChainDependency:
             def __init__(self):
                 self.ready = True
 
-        @DependsOn("Logger")
+        @depends_on("Logger")
         class DatabaseService(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
@@ -521,7 +521,7 @@ class TestImportChainDependency:
                 if logger.ready:
                     self.connected = True
 
-        @Import(DatabaseService)
+        @import_class(DatabaseService)
         class AppConfig(Dough):
             _scope = Scope.SINGLETON
 
@@ -541,13 +541,13 @@ class TestImportChainDependency:
             def __init__(self):
                 self.cached = {}
 
-        @DependsOn("CacheManager")
+        @depends_on("CacheManager")
         class SessionService(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
                 self.sessions = {}
 
-        @Import(CacheManager, SessionService)
+        @import_class(CacheManager, SessionService)
         class AppConfig(Dough):
             _scope = Scope.SINGLETON
 
@@ -698,7 +698,7 @@ class TestFullBuildPipeline:
             async def on_destroy(self):
                 events.append("A.on_destroy")
 
-        @DependsOn("BeanA")
+        @depends_on("BeanA")
         class BeanB(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
@@ -740,30 +740,30 @@ class TestFullBuildPipeline:
             def __init__(self):
                 self.logs = []
 
-        @DependsOn("Config", "Logger")
+        @depends_on("Config", "Logger")
         class Database(Dough):
             _scope = Scope.SINGLETON
             async def on_init(self):
                 self.cfg = DoughFactory.get().resolve("Config")
                 self.logger = DoughFactory.get().resolve("Logger")
 
-        @DependsOn("Database")
+        @depends_on("Database")
         class UserRepository(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("Database")
+        @depends_on("Database")
         class OrderRepository(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("UserRepository", "Logger")
+        @depends_on("UserRepository", "Logger")
         class UserService(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("OrderRepository", "Logger")
+        @depends_on("OrderRepository", "Logger")
         class OrderService(Dough):
             _scope = Scope.SINGLETON
 
-        @DependsOn("UserService", "OrderService")
+        @depends_on("UserService", "OrderService")
         class Gateway(Dough):
             _scope = Scope.SINGLETON
 
@@ -845,13 +845,13 @@ class TestLifecycleException:
             def __init__(self):
                 self.ok = True
 
-        @DependsOn("Config")
+        @depends_on("Config")
         class FailingDB(Dough):
             _scope = Scope.SINGLETON
             async def on_init(self):
                 raise ConnectionError("db connection failed")
 
-        @DependsOn("FailingDB")
+        @depends_on("FailingDB")
         class UserService(Dough):
             _scope = Scope.SINGLETON
 

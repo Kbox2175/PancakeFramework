@@ -10,7 +10,7 @@ from typing import Any, Callable
 from collections import defaultdict
 
 from pancake.dough import Dough, Scope
-from pancake.registry import register_decorator
+from pancake.registry import export
 
 logger = logging.getLogger(__name__)
 
@@ -271,6 +271,7 @@ def create_manager() -> BrokerManager:
     return BrokerManager()
 
 
+@export
 def event_node(name: str = None, event: str = None):
     """
     事件节点装饰器
@@ -311,6 +312,7 @@ def event_node(name: str = None, event: str = None):
     return decorator
 
 
+@export
 def on_event(event: str):
     """
     事件监听装饰器
@@ -335,6 +337,3 @@ def get_subscription_registry() -> SubscriptionRegistry:
     return _subscription_registry
 
 
-# 注册装饰器到全局注册表
-register_decorator("event_node", event_node)
-register_decorator("on_event", on_event)

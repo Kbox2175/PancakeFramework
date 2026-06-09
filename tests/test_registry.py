@@ -92,7 +92,7 @@ class TestFlourWater:
     def test_flour_contains_decorators(self):
         """flour 应包含框架装饰器"""
         assert "inject" in flour
-        assert "Singleton" in flour
+        assert "singleton" in flour
 
     def test_water_contains_classes(self):
         """water 应包含框架类"""
