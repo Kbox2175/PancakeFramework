@@ -3,15 +3,15 @@
 import pytest
 from pancake.dough import Dough, Scope
 from pancake.decorators import (
-    DependsOn, Import, DoughDecorator, Singleton, Prototype, Lazy,
-    Maker, noMaker, inject, Config,
+    depends_on, import_class, dough, singleton, prototype, lazy,
+    maker, maker_name, no_maker, inject, inject_name, config,
 )
 
 
 class TestDependsOn:
 
     def test_depends_on_sets_attribute(self):
-        @DependsOn("ServiceA", "ServiceB")
+        @depends_on("ServiceA", "ServiceB")
         class MyService(Dough):
             def __init__(self):
                 pass
@@ -19,7 +19,7 @@ class TestDependsOn:
         assert MyService._depends_on == ["ServiceA", "ServiceB"]
 
     def test_depends_on_empty(self):
-        @DependsOn()
+        @depends_on()
         class EmptyDeps(Dough):
             def __init__(self):
                 pass
@@ -28,7 +28,7 @@ class TestDependsOn:
 
     def test_depends_on_preserves_class(self):
         """装饰器不改变类本身"""
-        @DependsOn("X")
+        @depends_on("X")
         class Original(Dough):
             def __init__(self):
                 self.marker = 123
@@ -44,12 +44,12 @@ class TestImport:
             def __init__(self):
                 pass
 
-        @Import(External)
-        class Config(Dough):
+        @import_class(External)
+        class MyConfig(Dough):
             def __init__(self):
                 pass
 
-        assert Config._imports == [External]
+        assert MyConfig._imports == [External]
 
     def test_import_multiple_classes(self):
         class A(Dough):
@@ -60,12 +60,12 @@ class TestImport:
             def __init__(self):
                 pass
 
-        @Import(A, B)
-        class Config(Dough):
+        @import_class(A, B)
+        class MyConfig(Dough):
             def __init__(self):
                 pass
 
-        assert Config._imports == [A, B]
+        assert MyConfig._imports == [A, B]
 
     def test_import_preserves_class(self):
         """装饰器不改变类本身"""
@@ -73,40 +73,40 @@ class TestImport:
             def __init__(self):
                 pass
 
-        @Import(External)
-        class Config(Dough):
+        @import_class(External)
+        class MyConfig(Dough):
             def __init__(self):
                 self.val = 42
 
-        assert Config().val == 42
-        assert Config.__name__ == "Config"
+        assert MyConfig().val == 42
+        assert MyConfig.__name__ == "MyConfig"
 
 
 class TestClassDecorators:
 
-    def test_dough_decorator_sets_scope(self):
-        @DoughDecorator
+    def test_dough_sets_scope(self):
+        @dough
         class MyBean(Dough):
             def __init__(self):
                 pass
         assert MyBean._scope == Scope.SINGLETON
 
     def test_singleton_decorator(self):
-        @Singleton
+        @singleton
         class MyBean(Dough):
             def __init__(self):
                 pass
         assert MyBean._scope == Scope.SINGLETON
 
     def test_prototype_decorator(self):
-        @Prototype
+        @prototype
         class MyBean(Dough):
             def __init__(self):
                 pass
         assert MyBean._scope == Scope.PROTOTYPE
 
     def test_lazy_decorator(self):
-        @Lazy
+        @lazy
         class MyBean(Dough):
             def __init__(self):
                 pass
@@ -114,8 +114,8 @@ class TestClassDecorators:
         assert MyBean._scope == Scope.LAZY
 
     def test_decorator_composition(self):
-        @Prototype
-        @DoughDecorator
+        @prototype
+        @dough
         class MyBean(Dough):
             def __init__(self):
                 pass
@@ -128,7 +128,7 @@ class TestMakerDecorator:
         class MyConfig(Dough):
             def __init__(self):
                 pass
-            @Maker
+            @maker
             def my_bean(self):
                 return "bean"
         assert hasattr(MyConfig.my_bean, "_is_maker")
@@ -141,7 +141,7 @@ class TestNoMakerDecorator:
         class MyConfig(Dough):
             def __init__(self):
                 pass
-            @noMaker
+            @no_maker
             def helper(self):
                 return "helper"
         assert hasattr(MyConfig.helper, "_no_maker")
@@ -182,3 +182,81 @@ class TestInjectDecorator:
         def sync_func():
             pass
         assert not inspect.iscoroutinefunction(sync_func)
+
+
+class TestMakerName:
+
+    def test_maker_with_name(self):
+        """@maker("name") 设置自定义 bean name"""
+        @maker("custom")
+        def my_bean():
+            return "bean"
+        assert my_bean._is_maker is True
+        assert my_bean._maker_name == "custom"
+
+    def test_maker_without_name(self):
+        """@maker 不设置 _maker_name"""
+        @maker
+        def my_bean():
+            return "bean"
+        assert my_bean._is_maker is True
+        assert not hasattr(my_bean, "_maker_name")
+
+    def test_maker_name_decorator(self):
+        """@maker_name 标记 _inject_by_name"""
+        @maker_name("cache")
+        def cache_bean():
+            return "cache"
+        assert cache_bean._is_maker is True
+        assert cache_bean._maker_name == "cache"
+        assert cache_bean._inject_by_name is True
+
+    def test_maker_name_no_args(self):
+        """@maker_name 无参使用"""
+        @maker_name
+        def cache_bean():
+            return "cache"
+        assert cache_bean._is_maker is True
+        assert cache_bean._inject_by_name is True
+
+
+class TestInjectName:
+
+    def test_inject_name_as_default_value(self):
+        """inject_name("name") 作为参数默认值"""
+        from pancake.decorators import _InjectName
+        result = inject_name("my_db")
+        assert isinstance(result, _InjectName)
+        assert result.name == "my_db"
+
+    def test_inject_resolves_by_param_name(self):
+        """@inject 无类型注解时按形参名解析"""
+        from pancake.registry import register_instance
+
+        class FakeService:
+            pass
+
+        register_instance("my_param", FakeService())
+
+        @inject
+        def use_service(my_param):
+            return my_param
+
+        result = use_service()
+        assert isinstance(result, FakeService)
+
+    def test_inject_resolves_by_inject_name(self):
+        """@inject 参数默认值 inject_name("name") 按指定名解析"""
+        from pancake.registry import register_instance
+
+        class FakeDB:
+            pass
+
+        register_instance("primary_db", FakeDB())
+
+        @inject
+        def use_db(db=inject_name("primary_db")):
+            return db
+
+        result = use_db()
+        assert isinstance(result, FakeDB)

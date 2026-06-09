@@ -46,11 +46,11 @@ class TestConfiguration:
 
     @pytest.mark.asyncio
     async def test_configuration_skips_no_maker(self):
-        from pancake.decorators import noMaker
+        from pancake.decorators import no_maker
         class AppConfig(Configuration):
             def __init__(self):
                 pass
-            @noMaker
+            @no_maker
             def helper(self):
                 return {"helper": True}
 

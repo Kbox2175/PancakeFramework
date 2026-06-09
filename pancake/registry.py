@@ -30,46 +30,63 @@ def get_all_classes() -> dict[str, type]:
 
 
 # ============================================================
-#  装饰器注册表
+#  装饰器注册表（统一使用 flour）
 # ============================================================
-
-_decorator_registry: dict[str, object] = {}
 
 
 def register_decorator(name: str, decorator: object):
-    """注册装饰器到全局注册表"""
-    _decorator_registry[name] = decorator
+    """注册装饰器到 flour"""
+    flour[name] = decorator
 
 
 def get_decorator(name: str) -> object | None:
-    """从注册表获取装饰器"""
-    return _decorator_registry.get(name)
+    """获取装饰器"""
+    return flour.get(name)
 
 
 def get_all_decorators() -> dict[str, object]:
     """获取所有注册的装饰器（返回副本）"""
-    return dict(_decorator_registry)
+    return dict(flour)
 
 
 def has_decorator(name: str) -> bool:
     """检查装饰器是否已注册"""
-    return name in _decorator_registry
+    return name in flour
+
+
+def export(obj):
+    """@export — 标记函数/类为可导出，自动注册到 flour
+
+    用于 ovenware 插件，替代手动 flour["name"] = obj。
+
+    用法:
+        @export
+        def event_node(name, event):
+            ...
+
+        @export
+        class SimpleBroker(Dough):
+            ...
+    """
+    name = obj.__name__
+    flour[name] = obj
+    return obj
 
 
 # ============================================================
-#  实例注册表
+#  实例注册表 — 统一用 bean name 作为 key
 # ============================================================
 
 _instance_registry: dict[str, object] = {}
 
 
 def register_instance(name: str, instance: object):
-    """注册实例"""
+    """注册实例（key = bean name）"""
     _instance_registry[name] = instance
 
 
 def get_instance(name: str) -> object | None:
-    """获取实例"""
+    """获取实例（按 bean name 查找）"""
     return _instance_registry.get(name)
 
 
@@ -130,7 +147,6 @@ def clear_registry():
     注意：flour/water/egg/sugar 不清空，它们是框架内置 API。
     """
     _class_registry.clear()
-    _decorator_registry.clear()
     _instance_registry.clear()
     _runtime_registry.clear()
     # flour/water/egg/sugar 保留，它们是静态框架 API

@@ -170,14 +170,14 @@ class TestDependencyResolution:
 
     @pytest.mark.asyncio
     async def test_depends_on_creates_in_order(self):
-        from pancake.decorators import DependsOn
+        from pancake.decorators import depends_on
 
         class DatabaseService(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
                 self.connected = True
 
-        @DependsOn("DatabaseService")
+        @depends_on("DatabaseService")
         class UserService(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
@@ -196,15 +196,15 @@ class TestDependencyResolution:
 
     @pytest.mark.asyncio
     async def test_circular_dependency_raises(self):
-        from pancake.decorators import DependsOn
+        from pancake.decorators import depends_on
 
-        @DependsOn("ServiceB")
+        @depends_on("ServiceB")
         class ServiceA(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
                 pass
 
-        @DependsOn("ServiceA")
+        @depends_on("ServiceA")
         class ServiceB(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
@@ -219,14 +219,14 @@ class TestDependencyResolution:
 
     @pytest.mark.asyncio
     async def test_import_registers_classes(self):
-        from pancake.decorators import Import
+        from pancake.decorators import import_class
 
         class ExternalService(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
                 self.value = 99
 
-        @Import(ExternalService)
+        @import_class(ExternalService)
         class AppConfig(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
@@ -241,7 +241,7 @@ class TestDependencyResolution:
 
     @pytest.mark.asyncio
     async def test_chained_dependencies(self):
-        from pancake.decorators import DependsOn
+        from pancake.decorators import depends_on
 
         creation_order = []
 
@@ -250,13 +250,13 @@ class TestDependencyResolution:
             def __init__(self):
                 creation_order.append("ServiceC")
 
-        @DependsOn("ServiceC")
+        @depends_on("ServiceC")
         class ServiceB(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
                 creation_order.append("ServiceB")
 
-        @DependsOn("ServiceB")
+        @depends_on("ServiceB")
         class ServiceA(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):
@@ -284,9 +284,9 @@ class TestDependencyResolution:
 
     @pytest.mark.asyncio
     async def test_depends_on_unknown_bean_ignored(self):
-        from pancake.decorators import DependsOn
+        from pancake.decorators import depends_on
 
-        @DependsOn("NonExistentBean")
+        @depends_on("NonExistentBean")
         class MyBean(Dough):
             _scope = Scope.SINGLETON
             def __init__(self):

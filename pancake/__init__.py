@@ -55,7 +55,8 @@ from pancake.registry import (
     register_decorator, get_decorator, get_all_decorators,
 )
 from pancake.decorators import (
-    DoughDecorator, Singleton, Prototype, Lazy,
-    Maker, noMaker, inject, Config, DependsOn, Import,
+    dough, singleton, prototype, lazy,
+    maker, no_maker, inject, config, depends_on, import_class,
+    service, configuration, function, struct,
 )
 from pancake.base import Configuration, Function, Service, Struct
